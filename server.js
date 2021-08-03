@@ -1,59 +1,64 @@
 'use strict';
- 
-require('dotenv').config();
-const express = require('express'); 
-const weatherData = require('./data/weather.json');
+const express = require('express');
 const cors = require('cors');
 const server = express();
-const PORT = process.env.PORT;
 server.use(cors());
-server.get('/', (request, response) => {
-    let str = 'hello I am Heba 💛🙈';
-    response.status(202).send(str);
+require('dotenv').config();
+const weatherData = require('./data/weather.json');
+const axios = require('axios');
+const PORT = process.env.PORT;
+const weatherkey = process.env.WEATHER_API_KEY;
+const moviekey = process.env.MOVIE_API_KEY;
+server.listen(PORT, () => {
+    console.log(PORT);
 })
 
 
-server.get('/test', (req, res) => {
-    res.send('test Weather Data')
-
-})
-
-
-server.get('/weather', (req, res) => {
-    let weatherCityData = req.query.city_name;
-    let weatherCity = weatherData.find(city => {
-        if (city.city_name.toLowerCase()==weatherCityData.toLowerCase()) {
-            return city
-
-        }
-
-    });
-    console.log(weatherCityData)
-
-
-
-let foccasrtDataArr= weatherCity.data.map(item=>{
-    return new Forecast(item)
-})
-res.send(foccasrtDataArr)
-})
-
-class Forecast {
-    constructor(arr) {
-
-        this.date = arr.valid_date
-        this.descrption = arr.weather.description;       
-
+class ForCast {
+    constructor(item) {
+        this.date = item.valid_date;
+        this.description = `low of ${item.min_temp}, hight of ${item.max_temp} with ${item.weather.description}`;
+    }
+}
+class Movies {
+    constructor(item) {
+        this.title = item.original_title;
+        this.overview = item.overview;
+        this.avgVotes = item.vote_average;
+        this.totalVotes= item.vote_count;
+        this.imagePath =`https://image.tmdb.org/t/p/w500${item.poster_path}`;
+        this.popularity = item.popularity;
+        this.releaseDate = item.release_date;
 
     }
 }
+server.get('/weather', weatherHandler);
+server.get('/movie', movieHandler);
 
-
-server.get('*', (req, res) => {
-    res.status(404).send('not found');
-})
-
- 
-server.listen(PORT, () => {
-    console.log(`listening on PORT ${PORT}`);
-})
+function weatherHandler(req, res) {
+    let city = req.query.searchQuery;
+    let url = `https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&key=${weatherkey}`;
+    axios.get(url).then(result => {
+        let forcastArr = result.data.data.map(element => {
+            return new ForCast(element);
+        })
+        res.send(forcastArr);
+    })
+        .catch(error => {
+            res.status(500).send('data not found');
+        })
+}
+function movieHandler(req, res) {
+    let city = req.query.searchQuery;
+    let url = `https://api.themoviedb.org/3/search/movie?api_key=${moviekey}&query=${city}`;
+    axios.get(url).then(result => {
+        let movieArr = result.data.results.map(element => {
+            return new Movies(element);
+        })
+        res.send(movieArr);
+        console.log(movieArr);
+    })
+        .catch(error => {
+            res.status(500).send(`data not found.${error}`);
+        })
+}
